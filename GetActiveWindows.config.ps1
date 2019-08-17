@@ -16,7 +16,7 @@ $C_dateformat2 = "yyyy/MM/dd HH:mm:ss"
 $C_output_folder = "$env:temp"
 
 ## encode
-$C_Encode = [System.Text.Encoding]::Unicode
+$C_Encode = 'UTF8'
 
 ## output file name
 $C_output_filename2 = "Activewindows_{{date_str}}.txt"
@@ -28,12 +28,13 @@ $C_output_path2 = $C_output_path2.Replace("{{date_str}}", $date_str)
 
 ## category dictionary
 $C_category_dic = @{}
-$C_category_dic.Add("edge", "browser")
+$C_category_dic.Add("microsoft edge", "browser")
 $C_category_dic.Add("chrome", "browser")
 $C_category_dic.Add("firefox", "browser")
 $C_category_dic.Add("explorer", "filer")
 $C_category_dic.Add("powershell", "terminal")
 $C_category_dic.Add("outlook", "mailer")
+$C_category_dic.Add("mail", "mailer")
 $C_category_dic.Add("calendar", "scheduler")
 $C_category_dic.Add("slack", "chat")
 $C_category_dic.Add("twitter", "sns")
@@ -48,7 +49,7 @@ $C_category_dic.Add("typora", "editor")
 $C_category_dic.Add("journey", "logging")
 $C_category_dic.Add("todoist", "logging")
 $C_category_dic.Add("pomodoneapp", "logging")
-$C_category_dic.Add("photo", "image")
+$C_category_dic.Add("photos", "image")
 $C_category_dic.Add("sourcetree", "develop")
 
 
@@ -56,4 +57,4 @@ $C_category_dic.Add("sourcetree", "develop")
 $C_process_name_dic = @{}
 $C_process_name_dic.Add("powerpnt", "powerpoint")
 $C_process_name_dic.Add("winword", "word")
-$C_process_name_dic.Add("applicationframehost", "edge")
+$C_process_name_dic.Add("chrome browser", "chrome")

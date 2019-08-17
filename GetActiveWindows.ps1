@@ -10,6 +10,15 @@ Add-Type $APIsignaturesUtils -Name Utils -Namespace Win32
 $myPid = [IntPtr]::Zero;
 
 ## Sub Functions
+function get-activewin()
+{
+  $hwnd = [Win32.Utils]::GetForegroundWindow()
+  $null = [Win32.Utils]::GetWindowThreadProcessId($hwnd, [ref] $myPid)
+  $activewin = Get-Process| Where-Object ID -eq $myPid | Select-Object *
+  # return
+  $activewin
+}
+
 function convert-processdata($process)
 {
   $window_dic = @{}
@@ -23,28 +32,58 @@ function convert-processdata($process)
   $window_json
 }
 
-function get-activewin()
+function get-processname($processName, $mainWindowTitle)
 {
-  $hwnd = [Win32.Utils]::GetForegroundWindow()
-  $null = [Win32.Utils]::GetWindowThreadProcessId($hwnd, [ref] $myPid)
-  $activewin = Get-Process| Where-Object ID -eq $myPid | Select-Object *
+  $name = $processName.ToLower()
+  if($C_process_name_dic.ContainsKey($name)){
+    $rtn = $C_process_name_dic[$name]
+  }else{
+    if($name -eq 'applicationframehost'){
+      $ary = $mainWindowTitle -split "- "
+      $rtn = $ary[-1].ToLower()
+    }else{
+      if($name.StartsWith('todoist')){
+        $rtn = 'todoist'
+      } else {
+        $rtn = $name
+      }
+    }
+  }
   # return
-  $activewin
+  $rtn
 }
 
-function output-line($logPath, ){
-  $line = (Get-Date).ToString($C_dateformat) + "`t"
-  $line = $line + $activewin.Id + "`t"
-  $line = $line + $activewin.ProcessName + "`t"
-  [System.IO.File]::AppendAllText($logPath, $line + "`r`n", $C_Encode)
-  if($C_debug_mode){
-    $logger.info.Invoke($line)
+function get-category($judged_name)
+{
+  if($C_category_dic.ContainsKey($judged_name)){
+    $rtn = $C_category_dic[$judged_name]
+  }else{
+    $rtn = "other"
   }
+  # return
+  $rtn
+}
 
-  # $lst_str
-  [System.IO.File]::AppendAllText($logPath, "`t" + $lst_str, $C_Encode)
-  [System.IO.File]::AppendAllText($logPath, "`r`n", $C_Encode)
-
+function output-line($logPath, $activewin)
+{
+  $arylst = New-Object System.Collections.ArrayList
+  $null = $arylst.Add((Get-Date).ToString($C_dateformat2))
+  $null = $arylst.Add($activewin.StartTime.ToString($C_dateformat))
+  $null = $arylst.Add($activewin.Id)
+  
+  $judged_name = get-processname $activewin.ProcessName $activewin.MainWindowTitle
+  $null = $arylst.Add($judged_name)
+  $judged_category = get-category $judged_name
+  $null = $arylst.Add($judged_category)
+  $null = $arylst.Add($activewin.MainWindowTitle)
+  $ary = $arylst.ToArray()
+  $line = [string]::Join("`t",$ary)
+  
+  Add-Content -Path $logPath -Value $line -Encoding $C_Encode
+  
+  if($C_debug_mode){
+    $logger.info.Invoke("line=$line")
+  }
 }
 
 ## main
@@ -55,50 +94,22 @@ function Log-Activewindows($logPath="$env:temp\Activewindows.txt")
     $null
   }else{
     $null = New-Item -Path $logPath -ItemType File
-    [System.IO.File]::AppendAllText($logPath, "time`tprocessid`tcategory`tapps`tprocessname`ttitle`r`n", $C_Encode)
+    [System.IO.File]::AppendAllText($logPath, "timine`tprocessid`tcategory`tapps`tprocessname`ttitle`r`n", $C_Encode)
   }
-  
-  # buf
-  $lst = New-Object System.Collections.ArrayList
-
   
   try
   {
-    Write-Host 'Keylogger started. Press CTRL+C to see results...' -ForegroundColor Red
-    Write-Host 'Output log to .. ' $logPath
-    
-    [System.IO.File]::AppendAllText($logPath, "active windows`ttime`tcount`r`n", $C_Encode)
+    $logger.info.Invoke('Keylogger started. Press CTRL+C to see results...')
+    $logger.info.Invoke("Output keystroke log to ... $logPath")
     
     while ($true) {
-      $starttime = Get-Date
-      $flag = $true
-      
-      while ($flag) {
-        Start-Sleep -Milliseconds $C_windows_getting_interval
-        $activewin = get-activewin
-        
-        $process_json = convert-processdata($activewin)
-        $process_json
-        $cnt = $lst.Add($process_json)
-        
-        $endtime = Get-Date
-        $secondstosleep = [int]($C_interval - ($endtime - $starttime).TotalSeconds)
-        if($secondstosleep -le 0){
-          $flag = $false
-        } 
-      }
-      
-      $lst_ary = $lst.ToArray()
-      $lst_str = [string]::Join(",",$lst_ary)
+      Start-Sleep -Milliseconds $C_windows_getting_interval
+      $activewin = get-activewin
+      output-line $logPath $activewin
     }
   }
   finally
   { 
-    $lst_ary = $lst.ToArray()
-    $lst_str = [string]::Join(",",$lst_ary)
-    [System.IO.File]::AppendAllText($logPath, (Get-Date).ToString($C_dateformat), $C_Encode) 
-    [System.IO.File]::AppendAllText($logPath, "`t" + $lst_str, $C_Encode)
-    [System.IO.File]::AppendAllText($logPath, "`r`n", $C_Encode)
     notepad $logPath
   }
 }
