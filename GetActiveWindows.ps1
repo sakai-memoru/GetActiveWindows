@@ -1,14 +1,15 @@
-﻿## sub function
-$APIsignatures = @'
+﻿## Def
+# API declaration
+$APIsignaturesUtils = @'
 [DllImport("user32.dll")]
 public static extern IntPtr GetForegroundWindow();
 [DllImport("user32.dll")]
 public static extern IntPtr GetWindowThreadProcessId(IntPtr hWnd, out int ProcessId);
 '@
-Add-Type $APIsignatures -Name Utils -Namespace Win32
+Add-Type $APIsignaturesUtils -Name Utils -Namespace Win32
 $myPid = [IntPtr]::Zero;
 
-
+## Sub Functions
 function convert-processdata($process)
 {
   $window_dic = @{}
@@ -18,6 +19,7 @@ function convert-processdata($process)
   $window_dic.Add("StartTime",$process.StartTime.ToString($C_dateformat))
   $window_dic.Add("created",(Get-Date).ToString($C_dateformat2))
   $window_json = ($window_dic | ConvertTo-Json)
+  # return
   $window_json
 }
 
@@ -26,10 +28,24 @@ function get-activewin()
   $hwnd = [Win32.Utils]::GetForegroundWindow()
   $null = [Win32.Utils]::GetWindowThreadProcessId($hwnd, [ref] $myPid)
   $activewin = Get-Process| Where-Object ID -eq $myPid | Select-Object *
+  # return
   $activewin
 }
 
+function output-line($logPath, ){
+  $line = (Get-Date).ToString($C_dateformat) + "`t"
+  $line = $line + $activewin.Id + "`t"
+  $line = $line + $activewin.ProcessName + "`t"
+  [System.IO.File]::AppendAllText($logPath, $line + "`r`n", $C_Encode)
+  if($C_debug_mode){
+    $logger.info.Invoke($line)
+  }
 
+  # $lst_str
+  [System.IO.File]::AppendAllText($logPath, "`t" + $lst_str, $C_Encode)
+  [System.IO.File]::AppendAllText($logPath, "`r`n", $C_Encode)
+
+}
 
 ## main
 function Log-Activewindows($logPath="$env:temp\Activewindows.txt") 
@@ -38,8 +54,8 @@ function Log-Activewindows($logPath="$env:temp\Activewindows.txt")
   if (Test-Path $logPath){
     $null
   }else{
-    $null = New-Item -Path $logPath -ItemType File -Force
-    [System.IO.File]::AppendAllText($logPath, "time`tcount`tkey`r`n", $C_Encode)
+    $null = New-Item -Path $logPath -ItemType File
+    [System.IO.File]::AppendAllText($logPath, "time`tprocessid`tcategory`tapps`tprocessname`ttitle`r`n", $C_Encode)
   }
   
   # buf
@@ -74,10 +90,6 @@ function Log-Activewindows($logPath="$env:temp\Activewindows.txt")
       
       $lst_ary = $lst.ToArray()
       $lst_str = [string]::Join(",",$lst_ary)
-      # $lst_str
-      [System.IO.File]::AppendAllText($logPath, $endtime.ToString($C_dateformat), $C_Encode) 
-      [System.IO.File]::AppendAllText($logPath, "`t" + $lst_str, $C_Encode)
-      [System.IO.File]::AppendAllText($logPath, "`r`n", $C_Encode)
     }
   }
   finally
@@ -91,10 +103,16 @@ function Log-Activewindows($logPath="$env:temp\Activewindows.txt")
   }
 }
 
-## entry point
+## ---------------------------------------------------- // entry point
 ## include configs
 $project_name = split-path $PWD.path -leaf
 $config = "./$project_name.config.ps1"
 . $config
+
+## include logger
+. ./Get-Logger.ps1
+
+$logger = Get-Logger
+$logger.info.Invoke("get config from $config")
 
 Log-Activewindows($C_output_path2)
