@@ -14,7 +14,7 @@ function get-activewin()
 {
   $hwnd = [Win32.Utils]::GetForegroundWindow()
   $null = [Win32.Utils]::GetWindowThreadProcessId($hwnd, [ref] $myPid)
-  $activewin = Get-Process| Where-Object ID -eq $myPid | Select-Object *
+  $activewin = Get-Process| Where-Object ID -eq $myPid 
   # return
   $activewin
 }
@@ -25,38 +25,42 @@ function convert-processdata($process)
   $window_dic.Add("Id",$process.Id)
   $window_dic.Add("ProcessName",$process.ProcessName)
   $window_dic.Add("Title",$process.MainWindowTitle)
-  $window_dic.Add("StartTime",$process.StartTime.ToString($C_dateformat))
+  $window_dic.Add("StartTime",$process.StartTime.ToString($C_dateformat)) ## FIXME Start Timeは意味がないよう
   $window_dic.Add("created",(Get-Date).ToString($C_dateformat2))
   $window_json = ($window_dic | ConvertTo-Json)
   # return
   $window_json
 }
 
-function get-processname($processName, $mainWindowTitle)
+function get-appname($processName, $mainWindowTitle)
 {
   $name = $processName.ToLower()
+  # $logger.info.Invoke("name=$name")
   if($C_process_name_dic.ContainsKey($name)){
     $rtn = $C_process_name_dic[$name]
   }else{
     if($name -eq 'applicationframehost'){
       $ary = $mainWindowTitle -split "- "
-      $rtn = $ary[-1].ToLower()
-    }else{
-      if($name.StartsWith('todoist')){
-        $rtn = 'todoist'
-      } else {
-        $rtn = $name
+      $last_ary = $ary[-1].ToLower()
+      foreach($str in $C_app_start_name_ary){
+        if($last_ary.StartsWith($str)){
+          $rtn = $str
+        } else {
+          $rtn = $last_ary
+        }
       }
+    }else{
+      $rtn = $name
     }
   }
   # return
   $rtn
 }
 
-function get-category($judged_name)
+function get-category($app_name)
 {
-  if($C_category_dic.ContainsKey($judged_name)){
-    $rtn = $C_category_dic[$judged_name]
+  if($C_category_dic.ContainsKey($app_name)){
+    $rtn = $C_category_dic[$app_name]
   }else{
     $rtn = "other"
   }
@@ -71,13 +75,14 @@ function output-line($logPath, $activewin)
   $null = $arylst.Add($activewin.StartTime.ToString($C_dateformat))
   $null = $arylst.Add($activewin.Id)
   
-  $judged_name = get-processname $activewin.ProcessName $activewin.MainWindowTitle
-  $null = $arylst.Add($judged_name)
-  $judged_category = get-category $judged_name
-  $null = $arylst.Add($judged_category)
+  $app_name = get-appname $activewin.ProcessName $activewin.MainWindowTitle
+  # $logger.info.Invoke("line=$app_name")
+  $null = $arylst.Add($app_name)
+  $app_category = get-category $app_name
+  $null = $arylst.Add($app_category)
   $null = $arylst.Add($activewin.MainWindowTitle)
   $ary = $arylst.ToArray()
-  $line = [string]::Join("`t",$ary)
+  $line = $ary -join "`t"
   
   Add-Content -Path $logPath -Value $line -Encoding $C_Encode
   
@@ -94,13 +99,14 @@ function Log-Activewindows($logPath="$env:temp\Activewindows.txt")
     $null
   }else{
     $null = New-Item -Path $logPath -ItemType File
-    [System.IO.File]::AppendAllText($logPath, "timine`tprocessid`tcategory`tapps`tprocessname`ttitle`r`n", $C_Encode)
+    $line = "time`tprocessid`tappname`tcategory`ttitle"
+    Add-content -Path $logPath  -Value "$line`r`n" -Encoding $C_Encode
   }
   
   try
   {
-    $logger.info.Invoke('Keylogger started. Press CTRL+C to see results...')
-    $logger.info.Invoke("Output keystroke log to ... $logPath")
+    $logger.info.Invoke('Active windows logger started. Press CTRL+C to see results...')
+    $logger.info.Invoke("Output Active windows log to ... $logPath")
     
     while ($true) {
       Start-Sleep -Milliseconds $C_windows_getting_interval

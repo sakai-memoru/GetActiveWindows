@@ -26,13 +26,15 @@ $date_str = (Get-Date).ToString("yyMMdd")
 $C_output_path2 = Join-path $C_output_folder $C_output_filename2
 $C_output_path2 = $C_output_path2.Replace("{{date_str}}", $date_str)
 
-## category dictionary
+## category dictionary : need to lowercase keys and values
 $C_category_dic = @{}
 $C_category_dic.Add("microsoft edge", "browser")
 $C_category_dic.Add("chrome", "browser")
 $C_category_dic.Add("firefox", "browser")
 $C_category_dic.Add("explorer", "filer")
+$C_category_dic.Add("searchui", "filer")
 $C_category_dic.Add("powershell", "terminal")
+$C_category_dic.Add("powershell_ise", "terminal")
 $C_category_dic.Add("outlook", "mailer")
 $C_category_dic.Add("mail", "mailer")
 $C_category_dic.Add("calendar", "scheduler")
@@ -52,9 +54,15 @@ $C_category_dic.Add("pomodoneapp", "logging")
 $C_category_dic.Add("photos", "image")
 $C_category_dic.Add("sourcetree", "develop")
 
-
 ## category map
 $C_process_name_dic = @{}
 $C_process_name_dic.Add("powerpnt", "powerpoint")
 $C_process_name_dic.Add("winword", "word")
 $C_process_name_dic.Add("chrome browser", "chrome")
+
+## idetify apps strings
+$C_app_start_name_ary = @()
+$C_app_start_name_ary += "todoist"
+
+# $C_app_start_name_ary.GetType() | Format-Table -AutoSize
+
